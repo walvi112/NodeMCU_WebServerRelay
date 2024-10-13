@@ -1,5 +1,4 @@
 #include "webserver.h"
-#include "relay.h"
 #include "serial.h"
 
 static WiFiServer server(HTTP_PORT);
@@ -16,10 +15,12 @@ static const char* m_password;
 static bool serverOK = false;
 static bool timeSet = false;
 
-time_t now;
-struct tm tm; 
+static time_t now;
 
 static void time_is_set(void);
+
+static schedule schedules[SCHEDULE_SIZE];
+static uint8_t nbSchedule = 0;
 
 bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeout)
 {
@@ -87,6 +88,7 @@ void timeNTPInit(void)
 }
 
 void showTime() {
+  struct tm tm; 
   time(&now);                       // read the current time
   localtime_r(&now, &tm);           // update the structure tm with the current time
   logger()->print("year:");
@@ -112,7 +114,6 @@ void showTime() {
 
 void webServerHandler(void)
 {
-
   WiFiClient client = server.accept();  
 
   if (client) 
@@ -212,6 +213,43 @@ void webServerHandler(void)
     logger()->println("");
   }
 
+}
+
+bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
+{
+  if (nbSchedule >= SCHEDULE_SIZE)
+  {
+    logger()->println("Add schedule failed, maximum schedule reached.");
+    return false;
+  }
+
+  if ((hour > 23) || (minutes > 59) || (wday > 0x7F))
+  {
+    logger()->println("Add schedule failed, wrong time format.");
+    return false;
+  }
+
+  schedule toAdd;
+  toAdd = {status, hour, minutes, wday};
+  for(size_t i = 0; i < nbSchedule; i++)
+  {
+    if ((schedules[i].hour == toAdd.hour) && (schedules[i].minutes == toAdd.minutes) && (schedules[i].wday = toAdd.wday))
+    {
+      if (schedules[i].status == toAdd.status)
+      {
+         logger()->println("Schedule already existed.");
+      }
+      else
+      {
+        logger()->println("Modify status of existed schedule.");
+        schedules[i].status = toAdd.status;
+      }
+      return true;
+    }
+  }
+  schedules[nbSchedule++] = toAdd;
+  logger()->println("New schedule added.");
+  return true;
 }
 
 

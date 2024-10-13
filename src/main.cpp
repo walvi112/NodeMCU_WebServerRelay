@@ -16,6 +16,7 @@ void setup() {
   timeNTPInit();
   if (wifiConnect(ssid, password, WIFI_TIMEOUT))
     webServerInit();
+
 }
 
 void loop() {
@@ -23,7 +24,5 @@ void loop() {
   if(networkCheck())
     webServerHandler();
 
-  showTime();
-  delay(1000);
 }
 
