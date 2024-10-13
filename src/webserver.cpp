@@ -10,31 +10,110 @@ static String outputState = "off";
 static unsigned long currentTime = millis();
 static unsigned long previousTime = 0; 
 
-void wifiConnect(const char* ssid, const char* password)
+static const char* m_ssid;
+static const char* m_password;
+
+static bool serverOK = false;
+static bool timeSet = false;
+
+time_t now;
+struct tm tm; 
+
+static void time_is_set(void);
+
+bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeout)
 {
+    m_ssid = ssid;
+    m_password = password;
+
+    previousTime = millis();
     logger()->print("Connecting to ");
     logger()->println(ssid);
     WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    logger()->print(".");
+    while ((WiFi.status() != WL_CONNECTED) & (millis() - previousTime < wifiTimeout)) 
+    {
+      delay(500);
+      logger()->print(".");
     }
-    // Print local IP address and start web server
-    logger()->println("");
-    logger()->println("WiFi connected.");
-    logger()->println("IP address: ");
-    logger()->println(WiFi.localIP());
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      logger()->println("");
+      logger()->println("WiFi connected.");
+      logger()->println("IP address: ");
+      logger()->println(WiFi.localIP());
+      return true;
+    }
+    else
+    {
+      logger()->println("");
+      logger()->println("Wifi not connected (connection timeout).");
+      return false;
+    }
+}
+
+bool networkCheck(void)
+{
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    if (!serverOK)
+    {
+      wifiConnect(m_ssid, m_password, WIFI_TIMEOUT);
+      webServerInit();
+    }
+    return true;
+  }
+  else 
+  {
+    if (serverOK)
+    {
+      logger()->println("");
+      logger()->println("WiFi not connected (disconnected).");
+      serverOK = false;
+    }
+    return false;
+  }
 }
 
 void webServerInit(void)
 {
     server.begin();
+    serverOK = true;
+}
+
+void timeNTPInit(void)
+{
+  configTime(MY_TZ, MY_NTP_SERVER);
+  settimeofday_cb(time_is_set);
+}
+
+void showTime() {
+  time(&now);                       // read the current time
+  localtime_r(&now, &tm);           // update the structure tm with the current time
+  logger()->print("year:");
+  logger()->print(tm.tm_year + 1900);  // years since 1900
+  logger()->print("\tmonth:");
+  logger()->print(tm.tm_mon + 1);      // January = 0 (!)
+  logger()->print("\tday:");
+  logger()->print(tm.tm_mday);         // day of month
+  logger()->print("\thour:");
+  logger()->print(tm.tm_hour);         // hours since midnight  0-23
+  logger()->print("\tmin:");
+  logger()->print(tm.tm_min);          // minutes after the hour  0-59
+  logger()->print("\tsec:");
+  logger()->print(tm.tm_sec);          // seconds after the minute  0-61*
+  logger()->print("\twday");
+  logger()->print(tm.tm_wday);         // days since Sunday 0-6
+  if (tm.tm_isdst == 1)             // Daylight Saving Time flag
+    logger()->print("\tDST");
+  else
+    logger()->print("\tstandard");
+  logger()->println("");
 }
 
 void webServerHandler(void)
 {
 
-  WiFiClient client = server.available();  
+  WiFiClient client = server.accept();  
 
   if (client) 
   {                             
@@ -134,4 +213,9 @@ void webServerHandler(void)
   }
 
 }
-    
+
+
+static void time_is_set()
+{
+  timeSet = true;
+}

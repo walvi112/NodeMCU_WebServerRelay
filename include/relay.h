@@ -3,8 +3,10 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-#define RELAY_PIN   D1
+#define RELAY_PIN           D1
 #define BUTTON_PIN          D2
+
+#define RELAY_TYPE        NPN
 
 typedef enum RelayState
 {

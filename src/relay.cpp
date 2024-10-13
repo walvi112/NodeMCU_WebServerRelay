@@ -13,7 +13,7 @@ static unsigned long longPressDelay = 2000;
 
 void relayInit(RelayType type)
 {
-    pinMode(RELAY_CONTROL_PIN, OUTPUT);
+    pinMode(RELAY_PIN, OUTPUT);
     pinMode(LED_BUILTIN, OUTPUT);
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     digitalWrite(LED_BUILTIN, 0);
@@ -26,7 +26,7 @@ void relaySetState(RelayState state)
     if (relay._state != state)
     {
         relay._state = state;
-        digitalWrite(RELAY_CONTROL_PIN, relay._state ^ relay._type);
+        digitalWrite(RELAY_PIN, relay._state ^ relay._type);
     }
     
 }
@@ -34,7 +34,7 @@ void relaySetState(RelayState state)
 void relaySwitch(void)
 {
     relay._state = (RelayState) ((uint8_t) relay._state ^ 1);
-    digitalWrite(RELAY_CONTROL_PIN, relay._state ^ relay._type);
+    digitalWrite(RELAY_PIN, relay._state ^ relay._type);
 }
 
 void relayButtonHandler(void)
