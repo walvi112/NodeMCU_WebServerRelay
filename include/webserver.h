@@ -20,17 +20,19 @@
 typedef struct schedule
 {
     RelayState status; //relay status 
-    uint8_t hour;  // hours since midnight  0-23
-    uint8_t minutes;  // minutes after the hour  0-59
-    uint8_t wday;  // 00000000
+    int hour;  // hours since midnight  0-23
+    int minutes;  // minutes after the hour  0-59
+    int wday;  // 00000000 0sftwtms
 } schedule;
 
 bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeout);
 bool networkCheck(void);
 bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status);
+void updateNextSchedule();
 void webServerInit(void);
 void timeNTPInit(void);
 void showTime(void);
 void webServerHandler(void);
+struct tm getTime(void);
 
 #endif

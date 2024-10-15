@@ -16,11 +16,14 @@ static bool serverOK = false;
 static bool timeSet = false;
 
 static time_t now;
-
-static void time_is_set(void);
+static struct tm tm; 
 
 static schedule schedules[SCHEDULE_SIZE];
+static int8_t nextScheduleIndex = -1;
 static uint8_t nbSchedule = 0;
+
+static void time_is_set(void);
+static void updateTime(void);
 
 bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeout)
 {
@@ -88,9 +91,7 @@ void timeNTPInit(void)
 }
 
 void showTime() {
-  struct tm tm; 
-  time(&now);                       // read the current time
-  localtime_r(&now, &tm);           // update the structure tm with the current time
+  updateTime();
   logger()->print("year:");
   logger()->print(tm.tm_year + 1900);  // years since 1900
   logger()->print("\tmonth:");
@@ -252,6 +253,37 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
   return true;
 }
 
+void updateNextSchedule()
+{
+  if (nbSchedule == 0)
+    return;
+  int8_t minuteDiff = 0;
+  int8_t hourDiff = 0;
+  int8_t dayDiff = 0;
+  schedule thisSchedule;
+  updateTime();
+  for (size_t i = 0; i < nbSchedule; i++)
+  {
+    thisSchedule = schedules[i];
+    if((0x01 << tm.tm_wday) & thisSchedule.wday != 0) // today is the calendar
+    {
+      //TODO: implement check next schedule function
+    }
+
+  }
+}
+
+struct tm getTime()
+{
+   updateTime();
+   return tm;
+}
+
+static void updateTime()
+{
+  time(&now);                       
+  localtime_r(&now, &tm);   
+}
 
 static void time_is_set()
 {

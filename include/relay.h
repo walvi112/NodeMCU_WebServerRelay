@@ -1,6 +1,7 @@
 #ifndef RELAY_H
 #define RELAY_H
 #include <Arduino.h>
+#include <TickTwo.h>
 #include <stdint.h>
 
 #define RELAY_PIN           D1
@@ -33,7 +34,6 @@ typedef struct Relay
 } Relay;
 
 
-
 void relayInit(RelayType type);
 void relaySetState(RelayState state);
 void relaySwitch(void);
@@ -41,5 +41,6 @@ void relaySwitch(void);
 void IRAM_ATTR relayButtonPressIRQ(void);
 void relayButtonHandler(void);
 RelayState getRelayState(void);
+void blink();
 
 #endif

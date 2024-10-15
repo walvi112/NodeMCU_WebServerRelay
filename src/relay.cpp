@@ -1,6 +1,8 @@
 #include "relay.h"
 #include "serial.h"
 
+static TickTwo timerLED(blink, 500, 4, MILLIS);
+
 static Relay relay;
 
 static ButtonState currentBtnState = RELEASED;
@@ -11,12 +13,15 @@ static unsigned long lastDebounceTime = 0;
 static unsigned long debounceDelay = 50;
 static unsigned long longPressDelay = 2000;
 
+static bool ledState = 0; //on state of builtin led
+
 void relayInit(RelayType type)
 {
     pinMode(RELAY_PIN, OUTPUT);
     pinMode(LED_BUILTIN, OUTPUT);
     pinMode(BUTTON_PIN, INPUT_PULLUP);
-    digitalWrite(LED_BUILTIN, 0);
+    ledState = 0;
+    digitalWrite(LED_BUILTIN, ledState); //turn on builin led
     relay._type = type;
     relaySetState(OFF);
 }
@@ -40,13 +45,16 @@ void relaySwitch(void)
 void relayButtonHandler(void)
 {
     currentBtnState = (ButtonState) digitalRead(BUTTON_PIN);
+    timerLED.update();
     if (btnStateChanged)
     {
         switch (currentBtnState)
         {
             case RELEASED:
                 if (longPressed)
+                {
                     longPressed = false;
+                }
                 else
                 {
                     relaySwitch();
@@ -58,6 +66,7 @@ void relayButtonHandler(void)
                 if ((millis() - lastDebounceTime > longPressDelay))
                 {
                     logger()->println("Long pressed");
+                    timerLED.start();
                     longPressed = true;
                     btnStateChanged = false;        
                 }
@@ -80,4 +89,10 @@ void IRAM_ATTR relayButtonPressIRQ(void)
 RelayState getRelayState(void)
 {
     return relay._state;
+}
+
+void blink()
+{
+  ledState = !ledState;
+  digitalWrite(LED_BUILTIN, ledState);
 }
