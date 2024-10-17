@@ -13,17 +13,20 @@ static const char* m_ssid;
 static const char* m_password;
 
 static bool serverOK = false;
-static bool timeSet = false;
+bool timeSet = false;
 
 static time_t now;
 static struct tm tm; 
 
 static schedule schedules[SCHEDULE_SIZE];
-static int8_t nextScheduleIndex = -1;
+static int8_t nextScheduleIndex = -1; //-1 means schedule deactivated or no schedule
 static uint8_t nbSchedule = 0;
 
 static void time_is_set(void);
 static void updateTime(void);
+static void scheduleHandler(void);
+
+TickTwo timerSchedule(scheduleHandler, 1000, 0, MILLIS);
 
 bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeout)
 {
@@ -218,6 +221,12 @@ void webServerHandler(void)
 
 bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
 {
+  if (!timeSet)
+  {
+    logger()->println("Could not sync time, the schedule is deactivated.");
+    return false;
+  }
+
   if (nbSchedule >= SCHEDULE_SIZE)
   {
     logger()->println("Add schedule failed, maximum schedule reached.");
@@ -245,31 +254,91 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
         logger()->println("Modify status of existed schedule.");
         schedules[i].status = toAdd.status;
       }
+      updateNextSchedule();
       return true;
     }
   }
   schedules[nbSchedule++] = toAdd;
   logger()->println("New schedule added.");
+  updateNextSchedule();
   return true;
 }
 
+bool deleteSchedule(uint8_t index)
+{
+  if (index >= nbSchedule)
+  {
+    logger()->println("Invalid schedule index.");
+    return false;
+  }
+  else 
+  {
+    nbSchedule--;
+    for (size_t i = index; i < nbSchedule; i++)
+    {
+      schedules[i] = schedules[i+1];
+    }
+    logger()->print("Delete schedule ");
+    logger()->println(index);
+    if (nbSchedule == 0)
+      nextScheduleIndex = -1;
+
+    return true;
+  }
+}
+ 
+
 void updateNextSchedule()
 {
+  if (!timeSet)
+  {
+      logger()->println("Could not sync time, the schedule is deactivated.");
+      return;
+  }
+
   if (nbSchedule == 0)
     return;
-  int8_t minuteDiff = 0;
-  int8_t hourDiff = 0;
-  int8_t dayDiff = 0;
-  schedule thisSchedule;
-  updateTime();
-  for (size_t i = 0; i < nbSchedule; i++)
-  {
-    thisSchedule = schedules[i];
-    if((0x01 << tm.tm_wday) & thisSchedule.wday != 0) // today is the calendar
-    {
-      //TODO: implement check next schedule function
-    }
 
+  updateTime();
+  nextScheduleIndex = -1;
+  uint8_t nowDay = tm.tm_wday;
+  int nowMinute = tm.tm_hour * 60 + tm.tm_min;
+  int minDifMinute = 1500;
+  int dayMinute = 0; 
+  int difMinute;
+
+  for(size_t count = 0; count < 7; count++) //dummy variable to avoid infinite loop
+  {    
+    for (size_t i = 0; i < nbSchedule; i++)
+    {
+      if (schedules[i].wday & (0x01 << nowDay)) 
+      {
+        dayMinute = schedules[i].hour * 60 + schedules[i].minutes;
+        difMinute = dayMinute - nowMinute;
+        if ((difMinute > 0) & (difMinute < minDifMinute))
+        {
+          minDifMinute = difMinute;
+          nextScheduleIndex = i;
+        }
+      }
+    }
+    nowDay = (nowDay + 1) % 8;
+    if (nextScheduleIndex != -1)
+      return;
+    
+  }
+}
+
+static void scheduleHandler()
+{
+  if (nextScheduleIndex == -1)
+    return;
+
+  updateTime();
+  if ((tm.tm_hour == schedules[nextScheduleIndex].hour) & (tm.tm_min == schedules[nextScheduleIndex].minutes))
+  {
+    relaySetState(schedules[nextScheduleIndex].status);
+    updateNextSchedule();
   }
 }
 
@@ -288,4 +357,7 @@ static void updateTime()
 static void time_is_set()
 {
   timeSet = true;
+  logger()->println("Schedule is in active.");
+  updateNextSchedule();
+  timerSchedule.start();
 }

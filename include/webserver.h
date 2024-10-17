@@ -22,8 +22,11 @@ typedef struct schedule
     RelayState status; //relay status 
     int hour;  // hours since midnight  0-23
     int minutes;  // minutes after the hour  0-59
-    int wday;  // 00000000 0sftwtms
+    int wday;  // 00000000 0sftwtms 
 } schedule;
+
+extern bool timeSet;
+extern TickTwo timerSchedule;
 
 bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeout);
 bool networkCheck(void);

@@ -5,8 +5,8 @@
 
 #define LOG_ON            1
 
-const char* ssid     = " ";
-const char* password = " ";
+const char* ssid     = "";
+const char* password = "";
 
 
 void setup() {
@@ -16,10 +16,12 @@ void setup() {
   timeNTPInit();
   if (wifiConnect(ssid, password, WIFI_TIMEOUT))
     webServerInit();
-
+  updateNextSchedule();
+  
 }
 
 void loop() {
+  timerSchedule.update();
   relayButtonHandler();
   if(networkCheck())
     webServerHandler();

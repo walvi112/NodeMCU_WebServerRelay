@@ -28,6 +28,7 @@ void relayInit(RelayType type)
 
 void relaySetState(RelayState state)
 {
+    logger()->println("Relay changes state.");
     if (relay._state != state)
     {
         relay._state = state;
@@ -38,6 +39,7 @@ void relaySetState(RelayState state)
 
 void relaySwitch(void)
 {
+    logger()->println("Relay changes state.");
     relay._state = (RelayState) ((uint8_t) relay._state ^ 1);
     digitalWrite(RELAY_PIN, relay._state ^ relay._type);
 }
