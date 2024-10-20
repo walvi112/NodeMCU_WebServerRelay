@@ -25,6 +25,8 @@ static uint8_t nbSchedule = 0;
 static void time_is_set(void);
 static void updateTime(void);
 static void scheduleHandler(void);
+static void webServerRelayHTML(WiFiClient client, RequestType requestType);
+static void webServerScheduleHTML(WiFiClient client);
 
 TickTwo timerSchedule(scheduleHandler, 1000, 0, MILLIS);
 
@@ -116,6 +118,165 @@ void showTime() {
   logger()->println("");
 }
 
+static void webServerScheduleHTML(WiFiClient client)
+{
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-type:text/html");
+  client.println("Connection: close");
+  client.println();
+  client.println("<!DOCTYPE html><html>");
+  client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+  client.println("<link rel=\"icon\" href=\"data:,\">");
+  client.println("<title>NodeMCU Webserver Relay</title>");
+  client.println("<style>");
+  client.println("body { font-family: Arial, sans-serif; margin: 20px; }");
+  client.println("h1 { text-align: center; }");
+  client.println("form { max-width: 400px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; }");
+  client.println("label { display: block; margin-bottom: 10px; }");
+  client.println("input, select, button { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }");
+  client.println("button { background-color: #4CAF50; color: white; cursor: pointer; }");
+  client.println("button:hover { background-color: #45a049; }");
+  client.println(".reset_button { background-color: #f44336; }");
+  client.println(".reset_button:hover { background-color: #e53935; }");
+  client.println(".day { display: inline-flex; justify-content: space-evenly; align-items: center; padding: 8px; width: calc(50% - 10px); }");
+  client.println(".label_title { min-width: 70px; margin: 0; }");
+  client.println(".check_box { margin: 0; }");
+  client.println(".time { width: calc(100% - 20px); }");
+  client.println(".schedule { max-width: 400px; margin: 20px auto; padding: 15px; border: 1px solid #ccc; border-radius: 5px; background-color: #f2f2f2; }");
+  client.println(".schedule-item { background-color: #e7f3fe; padding: 10px; border-radius: 5px; margin-bottom: 10px; }");
+  client.println(".schedule-item p { margin: 5px 0; }");
+  client.println("</style></head>");
+  client.println("<body>");
+
+  client.println("<h1>Set Light Schedule</h1>");
+  client.println("<form id=\"lightScheduleForm\">");
+  client.println("<p style=\"display:block;margin-bottom:10px;margin-top:0px;\">Days of the week:</p>");
+  client.println("<div style=\"display:flex;flex-direction:column;padding-left:5px;margin-bottom:10px\">");
+
+  client.println("<div class=\"day\">");
+  client.println("<label class=\"label_title\" for=\"sunday\">Sunday</label>");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"sunday\" name=\"day_in_week\">");
+  client.println("</div>");
+
+  client.println("<div class=\"day\">");
+  client.println("<label class=\"label_title\" for=\"monday\">Monday</label>");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"monday\" name=\"day_in_week\">");
+  client.println("</div>");
+
+  client.println("<div class=\"day\">");
+  client.println("<label class=\"label_title\" for=\"tuesday\">Tuesday</label>");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"tuesday\" name=\"day_in_week\">");
+  client.println("</div>");
+
+  client.println("<div class=\"day\">");
+  client.println("<label class=\"label_title\" for=\"wedneday\">Wednesday</label>");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"wedneday\" name=\"day_in_week\">");
+  client.println("</div>");
+
+  client.println("<div class=\"day\">");
+  client.println("<label class=\"label_title\" for=\"thursday\">Thursday</label>");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"thursday\" name=\"day_in_week\">");
+  client.println("</div>");
+
+  client.println("<div class=\"day\">");
+  client.println("<label class=\"label_title\" for=\"friday\">Friday</label>");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"friday\" name=\"day_in_week\">");
+  client.println("</div>");
+
+  client.println("<div class=\"day\">");
+  client.println("<label class=\"label_title\" for=\"saturday\">Saturday</label>");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"saturday\" name=\"day_in_week\">");
+  client.println("</div>");
+
+  client.println("</div>");
+
+  client.println("<div class=\"time\">");
+  client.println("<label for=\"time\">Select Time:</label>");
+  client.println("<input type=\"time\" id=\"time\" name=\"time\" required>");
+  client.println("</div>");
+
+  client.println("<label for=\"status\">Light Status:</label>");
+  client.println("<select id=\"status\" name=\"status\" required>");
+  client.println("<option value=\"1\">On</option>");
+  client.println("<option value=\"0\">Off</option>");
+  client.println("</select>");
+
+  client.println("<button type=\"submit\">Set Schedule</button>");
+  client.println("<button class=\"reset_button\" type=\"reset\">Reset Field</button>");
+  client.println("</form>");
+
+  client.println("<div class=\"schedule\">");
+  client.println("<h2>Existing Schedule</h2>");
+  client.println("<div id=\"scheduleList\">");
+  client.println("<!-- Placeholder for dynamically displaying existing schedules -->");
+  client.println("</div>");
+  client.println("</div>");
+  client.println("</body>></html>");
+
+  client.println();
+
+}
+
+static void webServerRelayHTML(WiFiClient client, RequestType requestType)
+{
+  switch (requestType)
+  {
+    case GET_R:
+      client.println("HTTP/1.1 200 OK");
+      break;
+    case GET_R_ON:
+      client.println("HTTP/1.1 302 Found");
+      client.println("Location: /");
+      break;
+    case GET_R_OFF:
+      client.println("HTTP/1.1 302 Found");
+      client.println("Location: /");
+      break;
+    default:
+      break;
+  }
+  client.println("Content-type:text/html");
+  client.println("Connection: close");
+  client.println();
+  client.println("<!DOCTYPE html><html>");
+  // client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+  client.println("<head><script>function refresh(refreshPeriod) {setTimeout('location.reload(true)', refreshPeriod);} window.onload = refresh(5000);</script><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+  client.println("<link rel=\"icon\" href=\"data:,\">");
+  client.println("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+  client.println("<title>NodeMCU Webserver Relay</title>");
+  client.println("<style> body {font-familly: Arial, sans-serif; margin: 20px; display: block; margin: 0px auto; text-align: center; max-width: 400px;}");
+  client.println("h1 {text-align: center;}");
+  client.println("button {background-color: #4CAF50; color: white; cursor: pointer; width: 50%; padding: 16px 40px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 25px}");
+  client.println("button:hover {background-color: #45A049} </style></head>");
+
+
+  client.println("<body><h1>NodeMCU Relay Control</h1>");
+                
+  switch (getRelayState())
+  {
+    case ON:
+      outputState = "On";
+      break;
+    case OFF:
+      outputState  = "Off";
+      break;
+  }  
+  client.println("<p style=\"font-size: 20px;\">Relay - State " + outputState + "</p>");
+
+  if (outputState=="Off") 
+  {
+    client.println("<p><a href=\"/1/on\"><button>Turn On</button></a></p>");
+  } else 
+  {
+    client.println("<p><a href=\"/1/off\"><button>Turn Off</button></a></p>");
+  }
+  client.println("<p><a href=\"/1/schedule\"><button>Set schedule</button></a></p>");
+  client.println("</body></html>");
+  
+  client.println();
+
+}
+
 void webServerHandler(void)
 {
   WiFiClient client = server.accept();  
@@ -143,58 +304,26 @@ void webServerHandler(void)
             if (header.indexOf("GET /1/on") >= 0) 
             {
               logger()->println("GPIO 1 on");
-              outputState = "on";
+              outputState = "On";
               relaySetState(ON);
-              client.println("HTTP/1.1 302 Found");
-              client.println("Location: /");
+              webServerRelayHTML(client, GET_R_ON);
+
             } 
             else if (header.indexOf("GET /1/off") >= 0) 
             {
               logger()->println("GPIO 1 off");
-              outputState = "off";
+              outputState = "Off";
               relaySetState(OFF);
-              client.println("HTTP/1.1 302 Found");
-              client.println("Location: /");
+              webServerRelayHTML(client, GET_R_OFF);
+            }
+            else if(header.indexOf("GET /1/schedule") >= 0)
+            {
+              webServerScheduleHTML(client);
             }
             else
             {
-              client.println("HTTP/1.1 200 OK");
+              webServerRelayHTML(client, GET_R);
             }
-          
-            client.println("Content-type:text/html");
-            client.println("Connection: close");
-            client.println();
-            client.println("<!DOCTYPE html><html>");
-            client.println("<head><script>function refresh(refreshPeriod) {setTimeout('location.reload(true)', refreshPeriod);} window.onload = refresh(5000);</script><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-            client.println("<link rel=\"icon\" href=\"data:,\">");
-            client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-            client.println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;");
-            client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
-            client.println(".button2 {background-color: #77878A;}</style></head>");
-            
-            client.println("<body><h1>ESP8266 Web Server</h1>");
-                         
-            switch (getRelayState())
-            {
-              case ON:
-                outputState = "on";
-                break;
-              case OFF:
-                outputState  = "off";
-                break;
-            }  
-            client.println("<p>Relay - State " + outputState + "</p>");
-
-            if (outputState=="off") 
-            {
-              client.println("<p><a href=\"/1/on\"><button class=\"button button2\">OFF</button></a></p>");
-            } else 
-            {
-              client.println("<p><a href=\"/1/off\"><button class=\"button\">ON</button></a></p>");
-            }
-            client.println("</body></html>");
-            
-            client.println();
           
             break;
           } 

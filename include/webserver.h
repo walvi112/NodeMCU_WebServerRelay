@@ -16,6 +16,16 @@
 
 #define SCHEDULE_SIZE       36
 
+typedef enum RequestType
+{
+  GET_R,
+  GET_R_ON,
+  GET_R_OFF,
+  GET_SCHEDULE_DISPLAY,
+  POST_SCHEDULE_SET,
+  POST_SCHEDULE_DELETE,
+} RequestType;
+
 
 typedef struct schedule
 {
