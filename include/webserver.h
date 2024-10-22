@@ -9,7 +9,8 @@
 #define HTTP_PORT           80
 #define HTTP_TIMEOUT_TIME   2000
 #define WIFI_TIMEOUT        10000
-
+#define HTTP_BODY_BUFFER    200
+#define HTTP_HEADER_BUFFER  700
 
 #define MY_NTP_SERVER "at.pool.ntp.org"           
 #define MY_TZ         "<+07>-7"   

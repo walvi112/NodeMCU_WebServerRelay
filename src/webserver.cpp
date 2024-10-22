@@ -1,11 +1,15 @@
 #include "webserver.h"
 #include "serial.h"
+#include <string.h>
 
 static WiFiServer server(HTTP_PORT);
 
-static String header;
-static String body;
-static String outputState = "off";
+static char header[HTTP_HEADER_BUFFER];
+static unsigned int headerIndex = 0;
+static char body[HTTP_BODY_BUFFER];
+static unsigned int bodyIndex = 0;
+static char outputState[4] = "Off";
+
 
 static unsigned long currentTime = millis();
 static unsigned long previousTime = 0; 
@@ -139,7 +143,7 @@ static void webServerScheduleHTML(WiFiClient client)
   client.println("button:hover { background-color: #45a049; }");
   client.println(".reset_button { background-color: #f44336; }");
   client.println(".reset_button:hover { background-color: #e53935; }");
-  client.println(".day { display: inline-flex; justify-content: space-evenly; align-items: center; padding: 8px; width: calc(75% - 10px); }");
+  client.println(".day { display: -webkit-inline-flex; display: inline-flex; justify-content: space-evenly; align-items: center; padding: 8px; width: -webkit-fill-available;}");
   client.println(".label_title { min-width: 70px; margin: 0; }");
   client.println(".check_box { margin: 0; }");
   client.println(".time { width: calc(100% - 20px); }");
@@ -209,10 +213,10 @@ static void webServerScheduleHTML(WiFiClient client)
   client.println("<div class=\"schedule\">");
   client.println("<h2>Existing Schedule</h2>");
   client.println("<div id=\"scheduleList\">");
-  client.println("<!-- Placeholder for dynamically displaying existing schedules -->");
+
   client.println("</div>");
   client.println("</div>");
-  client.println("</body>></html>");
+  client.println("</body></html>");
 
   client.println();
 
@@ -220,8 +224,14 @@ static void webServerScheduleHTML(WiFiClient client)
 
 static void webServerRelayHTML(WiFiClient client, RequestType requestType)
 {
-  client.println("HTTP/1.1 302 Found");
-  client.println("Location: /");
+  if (requestType != GET_R)
+  {
+    client.println("HTTP/1.1 302 Found");
+    client.println("Location: /");
+  }
+  else
+    client.println("HTTP/1.1 200 OK");
+
   client.println("Content-type:text/html");
   client.println("Connection: close");
   client.println();
@@ -241,15 +251,17 @@ static void webServerRelayHTML(WiFiClient client, RequestType requestType)
   switch (getRelayState())
   {
     case ON:
-      outputState = "On";
+      strncpy(outputState, "On", 4);
+      // outputState = "On";
       break;
     case OFF:
-      outputState  = "Off";
+      strncpy(outputState, "Off", 4);
+      // outputState  = "Off";
       break;
   }  
-  client.println("<p style=\"font-size: 20px;\">Relay - State " + outputState + "</p>");
+  client.println("<p style=\"font-size: 20px;\">Relay - State " + String(outputState) + "</p>");
 
-  if (outputState=="Off") 
+  if (strstr(outputState, "Off") != NULL) 
   {
     client.println("<p><a href=\"/1/on\"><button>Turn On</button></a></p>");
   } else 
@@ -276,14 +288,21 @@ void webServerHandler(void)
     currentTime = millis();
     previousTime = currentTime;
 
-    while (client.connected() && currentTime - previousTime <= HTTP_TIMEOUT_TIME*2) 
+    while (client.connected() && currentTime - previousTime <= HTTP_TIMEOUT_TIME) 
     { 
       currentTime = millis(); 
       if (client.available()) 
       {     
         char c = client.read();            
         logger()->print(c);                   
-        headerRead ? body+=c : header += c;
+        headerRead ? body[bodyIndex++] = c : header[headerIndex++] = c;
+        if (bodyIndex >= HTTP_BODY_BUFFER || headerIndex >= HTTP_HEADER_BUFFER)
+        {
+          logger()->println("Request buffer overflow.");
+          logger()->println(bodyIndex);
+          logger()->println(headerIndex);
+          return;
+        }
         
         if (c == '\n') 
         {                  
@@ -291,23 +310,23 @@ void webServerHandler(void)
           {
             if (!headerRead)
             {
-              if (header.indexOf("GET") >= 0)
+              if (strstr(header, "GET") != NULL)
               {
-                if (header.indexOf("/1/on") >= 0) 
+                if (strstr(header, "/1/on") != NULL) 
                 {
                   logger()->println("GPIO 1 on");
-                  outputState = "On";
+                  strncpy(outputState, "On", 4);
                   relaySetState(ON);
                   webServerRelayHTML(client, GET_R_ON);
                 } 
-                else if (header.indexOf("/1/off") >= 0) 
+                else if (strstr(header, "/1/off") != NULL) 
                 {
                   logger()->println("GPIO 1 off");
-                  outputState = "Off";
+                  strncpy(outputState, "Off", 4);
                   relaySetState(OFF);
                   webServerRelayHTML(client, GET_R_OFF);
                 }
-                else if(header.indexOf("/1/schedule") >= 0)
+                else if(strstr(header, "/1/schedule") != NULL)
                 {
                   webServerScheduleHTML(client);
                 }
@@ -317,7 +336,7 @@ void webServerHandler(void)
                 }
                 break;
               }
-              else if(header.indexOf("POST /setschedule") >= 0)
+              else if(strstr(header, "POST /setschedule") != NULL)
               {
                 headerRead = true;
                 client.println("HTTP/1.1 200 OK");
@@ -326,6 +345,7 @@ void webServerHandler(void)
             else
             {
               //implement POST check
+              
               break;
             }           
             
@@ -342,11 +362,13 @@ void webServerHandler(void)
       }
     }
     
-    header = "";
-    body = "";
+    memset(header, '\0', HTTP_HEADER_BUFFER);
+    memset(body, '\0', HTTP_BODY_BUFFER);
+    headerIndex = 0;
+    bodyIndex = 0;
     
     client.stop();
-    logger()->println("Client disconnected.");
+    logger()->println("\nClient disconnected.");
     logger()->println("");
   }
 
