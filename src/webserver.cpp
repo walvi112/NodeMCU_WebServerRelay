@@ -160,40 +160,41 @@ static void webServerScheduleHTML(WiFiClient client)
 
   client.println("<div class=\"day\">");
   client.println("<label class=\"label_title\" for=\"sunday\">Sunday</label>");
-  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"sunday\" name=\"sunday\">");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"sunday\">");
   client.println("</div>");
 
   client.println("<div class=\"day\">");
   client.println("<label class=\"label_title\" for=\"monday\">Monday</label>");
-  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"monday\" name=\"monday\">");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"monday\">");
   client.println("</div>");
 
   client.println("<div class=\"day\">");
   client.println("<label class=\"label_title\" for=\"tuesday\">Tuesday</label>");
-  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"tuesday\" name=\"tuesday\">");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"tuesday\">");
   client.println("</div>");
 
   client.println("<div class=\"day\">");
   client.println("<label class=\"label_title\" for=\"wedneday\">Wednesday</label>");
-  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"wedneday\" name=\"wedneday\">");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"wedneday\">");
   client.println("</div>");
 
   client.println("<div class=\"day\">");
   client.println("<label class=\"label_title\" for=\"thursday\">Thursday</label>");
-  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"thursday\" name=\"thursday\">");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"thursday\">");
   client.println("</div>");
 
   client.println("<div class=\"day\">");
   client.println("<label class=\"label_title\" for=\"friday\">Friday</label>");
-  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"friday\" name=\"friday\">");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"friday\">");
   client.println("</div>");
 
   client.println("<div class=\"day\">");
   client.println("<label class=\"label_title\" for=\"saturday\">Saturday</label>");
-  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"saturday\" name=\"saturday\">");
+  client.println("<input type=\"checkbox\" class=\"check_box\" id=\"saturday\">");
   client.println("</div>");
 
   client.println("</div>");
+  client.println("<input type=\"hidden\" id=\"dayID\" name=\"dayID\" value=\"\">");
 
   client.println("<div class=\"time\">");
   client.println("<label for=\"time\">Select Time:</label>");
@@ -216,6 +217,17 @@ static void webServerScheduleHTML(WiFiClient client)
 
   client.println("</div>");
   client.println("</div>");
+
+  client.println("<script> document.getElementById('lightScheduleForm').addEventListener('submit', function(event) {");
+  client.println("event.preventDefault();");
+  client.println("const day = document.getElementsByClassName('check_box');");
+  client.println("var status_calendar = 0;");
+  client.println("var today;");
+  client.println("for (var i = 0; i < day.length; i++){today = day[i].checked ? 1 : 0; today = today << i; status_calendar |= today;}");
+  client.println("if (status_calendar == 0){alert(\"Error: No day chosen.\"); return; }"); 
+  client.println("document.getElementById('dayID').value = status_calendar; document.getElementById('lightScheduleForm').submit();");
+  client.println("}); </script>");
+  
   client.println("</body></html>");
 
   client.println();
@@ -252,11 +264,9 @@ static void webServerRelayHTML(WiFiClient client, RequestType requestType)
   {
     case ON:
       strncpy(outputState, "On", 4);
-      // outputState = "On";
       break;
     case OFF:
       strncpy(outputState, "Off", 4);
-      // outputState  = "Off";
       break;
   }  
   client.println("<p style=\"font-size: 20px;\">Relay - State " + String(outputState) + "</p>");
@@ -274,8 +284,6 @@ static void webServerRelayHTML(WiFiClient client, RequestType requestType)
   client.println();
 
 }
-
-
 
 void webServerHandler(void)
 {
@@ -345,7 +353,7 @@ void webServerHandler(void)
             else
             {
               //implement POST check
-              
+              logger()->print("Hello\n");
               break;
             }           
             
@@ -368,7 +376,7 @@ void webServerHandler(void)
     bodyIndex = 0;
     
     client.stop();
-    logger()->println("\nClient disconnected.");
+    logger()->println("Client disconnected.");
     logger()->println("");
   }
 
