@@ -316,47 +316,37 @@ void webServerHandler(void)
         {                  
           if (currentLine.length() == 0) 
           {
-            if (!headerRead)
+            if (strstr(header, "GET") != NULL)
             {
-              if (strstr(header, "GET") != NULL)
+              if (strstr(header, "/1/on") != NULL) 
               {
-                if (strstr(header, "/1/on") != NULL) 
-                {
-                  logger()->println("GPIO 1 on");
-                  strncpy(outputState, "On", 4);
-                  relaySetState(ON);
-                  webServerRelayHTML(client, GET_R_ON);
-                } 
-                else if (strstr(header, "/1/off") != NULL) 
-                {
-                  logger()->println("GPIO 1 off");
-                  strncpy(outputState, "Off", 4);
-                  relaySetState(OFF);
-                  webServerRelayHTML(client, GET_R_OFF);
-                }
-                else if(strstr(header, "/1/schedule") != NULL)
-                {
-                  webServerScheduleHTML(client);
-                }
-                else
-                {
-                  webServerRelayHTML(client, GET_R);
-                }
-                break;
-              }
-              else if(strstr(header, "POST /setschedule") != NULL)
+                logger()->println("GPIO 1 on");
+                strncpy(outputState, "On", 4);
+                relaySetState(ON);
+                webServerRelayHTML(client, GET_R_ON);
+              } 
+              else if (strstr(header, "/1/off") != NULL) 
               {
-                headerRead = true;
-                client.println("HTTP/1.1 200 OK");
+                logger()->println("GPIO 1 off");
+                strncpy(outputState, "Off", 4);
+                relaySetState(OFF);
+                webServerRelayHTML(client, GET_R_OFF);
               }
-            }
-            else
-            {
-              //implement POST check
-              logger()->print("Hello\n");
+              else if(strstr(header, "/1/schedule") != NULL)
+              {
+                webServerScheduleHTML(client);
+              }
+              else
+              {
+                webServerRelayHTML(client, GET_R);
+              }
               break;
-            }           
-            
+            }
+            else if(strstr(header, "POST /setschedule") != NULL)
+            {
+              headerRead = true;
+            }
+                       
           } 
           else 
           { 
@@ -368,6 +358,34 @@ void webServerHandler(void)
           currentLine += c;      
         }
       }
+      else if (headerRead)
+      {
+        char day[4] = {'\0'};
+        char hour[3] =  {'\0'};
+        char min[3] =  {'\0'};
+        
+        char* first_eq = strchr(body, '=');
+        char* second_eq = strchr(first_eq + 1, '=');
+
+        strncpy(day, first_eq + 1, strchr(body, '&') - first_eq - 1);
+        strncpy(hour, second_eq + 1, 2);
+        strncpy(min, second_eq + 6, 2);
+
+        logger()->println("");
+        logger()->print("Adding schedule d/h/m: ");
+        logger()->print(day);
+        logger()->print("/");
+        logger()->print(hour);
+        logger()->print("/");
+        logger()->print(min);
+        logger()->println("/");
+
+        addSchedule(atoi(hour), atoi(min), atoi(day), (RelayState) (body[bodyIndex-1] - '0'));
+        client.println("HTTP/1.1 302 Found");
+        client.println("Location: /1/schedule");
+        break;
+        
+      }
     }
     
     memset(header, '\0', HTTP_HEADER_BUFFER);
@@ -376,6 +394,7 @@ void webServerHandler(void)
     bodyIndex = 0;
     
     client.stop();
+    logger()->println("");
     logger()->println("Client disconnected.");
     logger()->println("");
   }
