@@ -42,6 +42,7 @@ extern TickTwo timerSchedule;
 bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeout);
 bool networkCheck(void);
 bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status);
+bool deleteSchedule(uint8_t index);
 void updateNextSchedule();
 void webServerInit(void);
 void timeNTPInit(void);

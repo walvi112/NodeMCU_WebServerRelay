@@ -26,6 +26,7 @@ static struct tm tm;
 static schedule schedules[SCHEDULE_SIZE];
 static int8_t nextScheduleIndex = -1; //-1 means schedule deactivated or no schedule
 static uint8_t nbSchedule = 0;
+static const char* weekDays[7] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 
 static void time_is_set(void);
 static void updateTime(void);
@@ -41,7 +42,7 @@ bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeo
     m_password = password;
 
     previousTime = millis();
-    logger()->print("Connecting to ");
+    Serial.print("Connecting to ");
     logger()->println(ssid);
     WiFi.begin(ssid, password);
     while ((WiFi.status() != WL_CONNECTED) & (millis() - previousTime < wifiTimeout)) 
@@ -51,16 +52,16 @@ bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeo
     }
     if (WiFi.status() == WL_CONNECTED)
     {
-      logger()->println("");
-      logger()->println("WiFi connected.");
-      logger()->println("IP address: ");
-      logger()->println(WiFi.localIP());
+      Serial.println("");
+      Serial.println("WiFi connected.");
+      Serial.println("IP address: ");
+      Serial.println(WiFi.localIP());
       return true;
     }
     else
     {
-      logger()->println("");
-      logger()->println("Wifi not connected (connection timeout).");
+      Serial.println("");
+      Serial.println("Wifi not connected (connection timeout).");
       return false;
     }
 }
@@ -80,8 +81,8 @@ bool networkCheck(void)
   {
     if (serverOK)
     {
-      logger()->println("");
-      logger()->println("WiFi not connected (disconnected).");
+      Serial.println("");
+      Serial.println("WiFi not connected (disconnected).");
       serverOK = false;
     }
     return false;
@@ -148,8 +149,9 @@ static void webServerScheduleHTML(WiFiClient client)
   client.println(".check_box { margin: 0; }");
   client.println(".time { width: calc(100% - 20px); }");
   client.println(".schedule { max-width: 400px; margin: 20px auto; padding: 15px; border: 1px solid #ccc; border-radius: 5px; background-color: #f2f2f2; }");
-  client.println(".schedule-item { background-color: #e7f3fe; padding: 10px; border-radius: 5px; margin-bottom: 10px; }");
+  client.println(".schedule-item { background-color: #e7f3fe; padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; align-items: center;}");
   client.println(".schedule-item p { margin: 5px 0; }");
+  client.println(".column {flex-grow: 1;}");
   client.println("</style></head>");
   client.println("<body>");
 
@@ -214,7 +216,39 @@ static void webServerScheduleHTML(WiFiClient client)
   client.println("<div class=\"schedule\">");
   client.println("<h2>Existing Schedule</h2>");
   client.println("<div id=\"scheduleList\">");
-
+  for (size_t i = 0; i < nbSchedule; i++)
+  {
+    client.println("<div class=\"schedule-item\">");
+    client.print("<div class=\"column\"><p><strong>Id:</strong> ");
+    client.print(i);
+    client.println("</p>");
+    client.println("<p><strong>Day:</strong> ");
+    for (size_t j = 0; j < 7; j++)
+    {
+      if (schedules[i].wday & (0x01 << j))
+      {
+        client.print(weekDays[j]);
+        client.print(", ");
+      }
+    }
+    client.println("</p>");
+    client.print("<p><strong>Time:</strong> ");
+    client.print(schedules[i].hour);
+    client.print(":");
+    client.print(schedules[i].minutes);
+    client.println("</p>");
+    client.print("<p><strong>Status:</strong> ");
+    if (schedules[i].status)
+      client.print("Turn On");
+    else
+      client.print("Turn Off");
+    client.println("</p></div>");
+    client.println("<div style=\"max-width:75px; \" class=\"column\">");
+    client.print("<a href=\"/1/delete/");
+    client.print(i);
+    client.println("\"><button class=\"reset_button\">Delete</button></a>");
+    client.println("</div></div>");
+  }
   client.println("</div>");
   client.println("</div>");
 
@@ -228,6 +262,8 @@ static void webServerScheduleHTML(WiFiClient client)
   client.println("document.getElementById('dayID').value = status_calendar; document.getElementById('lightScheduleForm').submit();");
   client.println("}); </script>");
   
+  client.println("<div style=\"max-width: 200px; margin: 20px auto\"><button onclick=\"window.location.href='/'\">Back</button></div>");
+
   client.println("</body></html>");
 
   client.println();
@@ -291,7 +327,7 @@ void webServerHandler(void)
   bool headerRead = false;
   if (client) 
   {                             
-    logger()->println("Client connect.");          
+    Serial.println("Client connect.");          
     String currentLine = "";                
     currentTime = millis();
     previousTime = currentTime;
@@ -316,35 +352,42 @@ void webServerHandler(void)
         {                  
           if (currentLine.length() == 0) 
           {
-            if (strstr(header, "GET") != NULL)
+            if (strstr(header, "GET /1/on") != NULL) 
             {
-              if (strstr(header, "/1/on") != NULL) 
-              {
-                logger()->println("GPIO 1 on");
-                strncpy(outputState, "On", 4);
-                relaySetState(ON);
-                webServerRelayHTML(client, GET_R_ON);
-              } 
-              else if (strstr(header, "/1/off") != NULL) 
-              {
-                logger()->println("GPIO 1 off");
-                strncpy(outputState, "Off", 4);
-                relaySetState(OFF);
-                webServerRelayHTML(client, GET_R_OFF);
-              }
-              else if(strstr(header, "/1/schedule") != NULL)
-              {
-                webServerScheduleHTML(client);
-              }
-              else
-              {
-                webServerRelayHTML(client, GET_R);
-              }
+              logger()->println("GPIO 1 on");
+              strncpy(outputState, "On", 4);
+              relaySetState(ON);
+              webServerRelayHTML(client, GET_R_ON);
+              break;
+            } 
+            else if (strstr(header, "GET /1/off") != NULL) 
+            {
+              logger()->println("GPIO 1 off");
+              strncpy(outputState, "Off", 4);
+              relaySetState(OFF);
+              webServerRelayHTML(client, GET_R_OFF);
               break;
             }
+            else if(strstr(header, "GET /1/schedule") != NULL)
+            {
+              webServerScheduleHTML(client);
+              break;
+            }
+            else if(strstr(header, "GET /1/delete") != NULL)
+            {
+              deleteSchedule(atoi(header + 14));
+              client.println("HTTP/1.1 302 Found");
+              client.println("Location: /1/schedule");
+              break;
+            }            
             else if(strstr(header, "POST /setschedule") != NULL)
             {
               headerRead = true;
+            }
+            else
+            {
+              webServerRelayHTML(client, GET_R);
+              break;
             }
                        
           } 
@@ -377,8 +420,7 @@ void webServerHandler(void)
         logger()->print("/");
         logger()->print(hour);
         logger()->print("/");
-        logger()->print(min);
-        logger()->println("/");
+        logger()->println(min);
 
         addSchedule(atoi(hour), atoi(min), atoi(day), (RelayState) (body[bodyIndex-1] - '0'));
         client.println("HTTP/1.1 302 Found");
@@ -395,7 +437,7 @@ void webServerHandler(void)
     
     client.stop();
     logger()->println("");
-    logger()->println("Client disconnected.");
+    Serial.println("Client disconnected.");
     logger()->println("");
   }
 
@@ -405,19 +447,19 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
 {
   if (!timeSet)
   {
-    logger()->println("Could not sync time, the schedule is deactivated.");
+    Serial.println("Could not sync time, the schedule is deactivated.");
     return false;
   }
 
   if (nbSchedule >= SCHEDULE_SIZE)
   {
-    logger()->println("Add schedule failed, maximum schedule reached.");
+    Serial.println("Add schedule failed, maximum schedule reached.");
     return false;
   }
 
   if ((hour > 23) || (minutes > 59) || (wday > 0x7F))
   {
-    logger()->println("Add schedule failed, wrong time format.");
+    Serial.println("Add schedule failed, wrong time format.");
     return false;
   }
 
@@ -429,11 +471,11 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
     {
       if (schedules[i].status == toAdd.status)
       {
-         logger()->println("Schedule already existed.");
+         Serial.println("Schedule already existed.");
       }
       else
       {
-        logger()->println("Modify status of existed schedule.");
+        Serial.println("Modify status of existed schedule.");
         schedules[i].status = toAdd.status;
       }
       updateNextSchedule();
@@ -441,7 +483,7 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
     }
   }
   schedules[nbSchedule++] = toAdd;
-  logger()->println("New schedule added.");
+  Serial.println("New schedule added.");
   updateNextSchedule();
   return true;
 }
@@ -450,7 +492,7 @@ bool deleteSchedule(uint8_t index)
 {
   if (index >= nbSchedule)
   {
-    logger()->println("Invalid schedule index.");
+    Serial.println("Invalid schedule index.");
     return false;
   }
   else 
@@ -460,8 +502,8 @@ bool deleteSchedule(uint8_t index)
     {
       schedules[i] = schedules[i+1];
     }
-    logger()->print("Delete schedule ");
-    logger()->println(index);
+    Serial.print("Delete schedule ");
+    Serial.println(index);
     if (nbSchedule == 0)
       nextScheduleIndex = -1;
 
@@ -474,7 +516,7 @@ void updateNextSchedule()
 {
   if (!timeSet)
   {
-      logger()->println("Could not sync time, the schedule is deactivated.");
+      Serial.println("Could not sync time, the schedule is deactivated.");
       return;
   }
 
@@ -517,7 +559,9 @@ static void scheduleHandler()
     return;
 
   updateTime();
-  if ((tm.tm_hour == schedules[nextScheduleIndex].hour) & (tm.tm_min == schedules[nextScheduleIndex].minutes))
+  if ((schedules[nextScheduleIndex].wday & (0x01 << tm.tm_wday)) 
+      && (tm.tm_hour == schedules[nextScheduleIndex].hour) 
+      && (tm.tm_min == schedules[nextScheduleIndex].minutes))
   {
     relaySetState(schedules[nextScheduleIndex].status);
     updateNextSchedule();
@@ -539,7 +583,7 @@ static void updateTime()
 static void time_is_set()
 {
   timeSet = true;
-  logger()->println("Schedule is in active.");
+  Serial.println("Schedule is in active.");
   updateNextSchedule();
   timerSchedule.start();
 }
