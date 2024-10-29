@@ -1,5 +1,6 @@
 #include "relay.h"
 #include "serial.h"
+#include "rom.h"
 
 static TickTwo timerLED(blink, 500, 4, MILLIS);
 
@@ -23,7 +24,8 @@ void relayInit(RelayType type)
     ledState = 0;
     digitalWrite(LED_BUILTIN, ledState); //turn on builin led
     relay._type = type;
-    relaySetState(OFF);
+    relaySetState((RelayState) romGetState());
+    
 }
 
 void relaySetState(RelayState state)
@@ -32,6 +34,7 @@ void relaySetState(RelayState state)
     if (relay._state != state)
     {
         relay._state = state;
+        romWriteState((uint8_t) relay._state);
         digitalWrite(RELAY_PIN, relay._state ^ relay._type);
     }
     
@@ -41,6 +44,7 @@ void relaySwitch(void)
 {
     Serial.println("Relay changes state.");
     relay._state = (RelayState) ((uint8_t) relay._state ^ 1);
+    romWriteState((uint8_t) relay._state);
     digitalWrite(RELAY_PIN, relay._state ^ relay._type);
 }
 
@@ -56,26 +60,26 @@ void relayButtonHandler(void)
                 if (longPressed)
                 {
                     longPressed = false;
+                    ESP.reset();
                 }
                 else
                 {
                     relaySwitch();
-                    logger()->println("Normal press");
+                    logger()->println("Normal press.");
                 }
                 btnStateChanged = false;
                 break;
             case PRESSED:
                 if ((millis() - lastDebounceTime > longPressDelay))
                 {
-                    logger()->println("Long pressed");
+                    logger()->println("Long pressed.");
+                    Serial.println("Reset device.");
                     timerLED.start();
                     longPressed = true;
                     btnStateChanged = false;        
                 }
         } 
-    }
-    
-        
+    }    
 }
 
 void IRAM_ATTR relayButtonPressIRQ(void)

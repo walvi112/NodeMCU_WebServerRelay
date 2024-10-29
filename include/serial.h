@@ -23,7 +23,7 @@ class Logger
             {
                 String numHEX = msg;
                 Serial.print("0x");
-                for (int i = 0; i < numHEX.length(); i++) 
+                for (unsigned int i = 0; i < numHEX.length(); i++) 
                 {
                     Serial.print(numHEX.charAt(i), HEX);
                 }
@@ -45,6 +45,7 @@ class Logger
 };
 
 void serialInit(bool _log_on);
+void serialHandler(void);
 Logger *logger();
 
 #endif

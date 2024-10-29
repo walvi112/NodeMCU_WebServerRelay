@@ -1,6 +1,7 @@
+#include <string.h>
 #include "webserver.h"
 #include "serial.h"
-#include <string.h>
+#include "rom.h"
 
 static WiFiServer server(HTTP_PORT);
 
@@ -56,6 +57,7 @@ bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeo
       Serial.println("WiFi connected.");
       Serial.println("IP address: ");
       Serial.println(WiFi.localIP());
+      webServerInit();
       return true;
     }
     else
@@ -87,6 +89,13 @@ bool networkCheck(void)
     }
     return false;
   }
+}
+
+void wifiSet(const char* _ssid, const char* _pwd)
+{
+  romWriteSSID(_ssid);
+  romWritePassword(_pwd);
+  wifiConnect(romGetSSID(), romGetPassword(), WIFI_TIMEOUT);
 }
 
 void webServerInit(void)
@@ -235,6 +244,8 @@ static void webServerScheduleHTML(WiFiClient client)
     client.print("<p><strong>Time:</strong> ");
     client.print(schedules[i].hour);
     client.print(":");
+    if (schedules[i].minutes <= 9)
+      client.print("0");
     client.print(schedules[i].minutes);
     client.println("</p>");
     client.print("<p><strong>Status:</strong> ");
@@ -415,12 +426,14 @@ void webServerHandler(void)
         strncpy(min, second_eq + 6, 2);
 
         logger()->println("");
-        logger()->print("Adding schedule d/h/m: ");
-        logger()->print(day);
-        logger()->print("/");
+        logger()->print("Adding schedule hour/min/status/day: ");
         logger()->print(hour);
         logger()->print("/");
-        logger()->println(min);
+        logger()->print(min);
+        logger()->print("/");
+        logger()->print(body[bodyIndex-1] - '0');
+        logger()->print("/");
+        logger()->println(day);
 
         addSchedule(atoi(hour), atoi(min), atoi(day), (RelayState) (body[bodyIndex-1] - '0'));
         client.println("HTTP/1.1 302 Found");
@@ -457,7 +470,7 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
     return false;
   }
 
-  if ((hour > 23) || (minutes > 59) || (wday > 0x7F))
+  if ((hour > 23) || (minutes > 59) || (wday > 0x7F) || (status != 0 && status != 1))
   {
     Serial.println("Add schedule failed, wrong time format.");
     return false;
@@ -467,7 +480,7 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
   toAdd = {status, hour, minutes, wday};
   for(size_t i = 0; i < nbSchedule; i++)
   {
-    if ((schedules[i].hour == toAdd.hour) && (schedules[i].minutes == toAdd.minutes) && (schedules[i].wday = toAdd.wday))
+    if ((schedules[i].hour == toAdd.hour) && (schedules[i].minutes == toAdd.minutes) && (schedules[i].wday == toAdd.wday))
     {
       if (schedules[i].status == toAdd.status)
       {
@@ -477,6 +490,8 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
       {
         Serial.println("Modify status of existed schedule.");
         schedules[i].status = toAdd.status;
+        romWriteNbSchedule(nbSchedule);
+        romWriteSchedules(schedules);
       }
       updateNextSchedule();
       return true;
@@ -484,6 +499,8 @@ bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status)
   }
   schedules[nbSchedule++] = toAdd;
   Serial.println("New schedule added.");
+  romWriteNbSchedule(nbSchedule);
+  romWriteSchedules(schedules); 
   updateNextSchedule();
   return true;
 }
@@ -506,7 +523,8 @@ bool deleteSchedule(uint8_t index)
     Serial.println(index);
     if (nbSchedule == 0)
       nextScheduleIndex = -1;
-
+    romWriteNbSchedule(nbSchedule);
+    romWriteSchedules(schedules);
     return true;
   }
 }
@@ -568,6 +586,22 @@ static void scheduleHandler()
   }
 }
 
+void logSchedule()
+{
+  for (size_t i = 0; i < nbSchedule; i++)
+  {
+    logger()->print(i);
+    logger()->print("/");
+    logger()->print(schedules[i].hour);
+    logger()->print("/");
+    logger()->print(schedules[i].minutes);
+    logger()->print("/");
+    logger()->print(schedules[i].status);
+    logger()->print("/");
+    logger()->println(schedules[i].wday);
+  }
+}
+
 struct tm getTime()
 {
    updateTime();
@@ -583,7 +617,9 @@ static void updateTime()
 static void time_is_set()
 {
   timeSet = true;
-  Serial.println("Schedule is in active.");
+  Serial.println("\nSchedule is activated.");
+  memcpy(schedules, romGetSchedules(), sizeof(schedules));
+  nbSchedule = romReadNbSchedule();
   updateNextSchedule();
   timerSchedule.start();
 }

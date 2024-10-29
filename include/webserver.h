@@ -12,8 +12,8 @@
 #define HTTP_BODY_BUFFER    200
 #define HTTP_HEADER_BUFFER  700
 
-#define MY_NTP_SERVER "at.pool.ntp.org"           
-#define MY_TZ         "<+07>-7"   
+#define MY_NTP_SERVER      "at.pool.ntp.org"           
+#define MY_TZ              "<+07>-7"   
 
 #define SCHEDULE_SIZE       36
 
@@ -36,13 +36,16 @@ typedef struct schedule
     int wday;  // 00000000 0sftwtms 
 } schedule;
 
+
 extern bool timeSet;
 extern TickTwo timerSchedule;
 
 bool wifiConnect(const char* ssid, const char* password, unsigned long wifiTimeout);
 bool networkCheck(void);
+void wifiSet(const char* _ssid, const char* _pwd);
 bool addSchedule(uint8_t hour, uint8_t minutes, uint8_t wday, RelayState status);
 bool deleteSchedule(uint8_t index);
+void logSchedule();
 void updateNextSchedule();
 void webServerInit(void);
 void timeNTPInit(void);
